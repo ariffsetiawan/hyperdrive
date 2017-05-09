@@ -4,7 +4,7 @@ type: major
 ---
 
 
-This release introduces bugfixes for Hyperdrive 1.0.0-beta.2&nbsp;
+This release introduces bugfixes for Hyperdrive 1.0.0-beta.2
 
 **Fixes:**
 
