@@ -3,17 +3,17 @@
  * Putting WordPress into Hyperdrive.
  *
  * @package     hyperdrive
- * @author      Josh Habdas
+ * @author      Josh Habdas and contributors
  * @link        https://wordpress.stackexchange.com/a/263733/117731
  * @license     GPL-3.0 or later
  *
  * @wordpress-plugin
  * Plugin Name: Hyperdrive
  * Plugin URI:  https://github.com/wp-id/hyperdrive
- * Author URI:  https://habd.as
+ * Author URI:  https://wp-id.org/
  * Description: The fastest way to load pages in WordPress.
  * Version:     1.0.0-beta
- * Author:      Josh Habdas and contributors
+ * Author:      WordCamp 2017 Plugin Team
  * License:     GPL-3.0 or later
  *
  * Hyperdrive. The fastest way to load pages in WordPress.
@@ -36,6 +36,11 @@
  */
 
 namespace hyperdrive;
+if ( !defined('ABSPATH') ) { exit(); }
+
+// Basic configuration
+define('HYPERDRIVE_VERSION', '1.0.0-beta.3');
+
 add_action('wp_head', __NAMESPACE__ .'\engage');
 
 /**
@@ -45,7 +50,7 @@ add_action('wp_head', __NAMESPACE__ .'\engage');
  * @uses get_dependency_data
  * @uses get_enqueued_scripts
  * @uses get_src_for_handle
- * @since Hyperdrive 1.0.0
+ * @since Hyperdrive 1.0.0-beta.0
  * @return Associative array containing structured data. Data
  *     structure is assumed by functions using and used by this
  *     method and must be udpated if data structure changes.
@@ -97,7 +102,7 @@ function calibrate_thrusters() {
  * Prepares "Calibration data" for Fetch Injection.
  * Dedupes associative array and respect sort order.
  *
- * @since Hyperdrive 1.0.0
+ * @since Hyperdrive 1.0.0-beta.0
  * @param array(array(...)) $calibration_data Destination coordinates
  * @param boolean [$recursing=false] True when generating subparticles
  * @return A list of scripts for use in Fetch Injection
@@ -126,32 +131,37 @@ function generate_antimatter( $calibration_data, $recursing = false ) {
 /**
  * Converts antimatter particles into dark matter.
  *
- * @since Hyperdrive 1.0.0
+ * @since Hyperdrive 1.0.0-beta.0
  * @link https://github.com/jhabdas/fetch-inject
  * @param array $antimatter_particles Partical array
  * @return A string containing a fully-assembled inline script
  *     for Fetch Injection.
  */
 function fold_spacetime( $antimatter_particles ) {
-  $injectors = [];
+  $injectors = $particle_array = [];
   $fetch_inject_string = '';
 
   // create ordered array of JSON encoded strings for Fetch Injection
-  function walk_recursive( $array, $accumulator, &$injectors, &$injection_json = '') {
+  function walk_recursive( $array, $accumulator, &$injectors, &$particle_array, &$injection_json = '') {
     $accumulator = [];
-    array_walk( $array, function( $item ) use( &$accumulator, &$injectors, &$injection_json ) {
+    array_walk( $array, function( $item ) use( &$accumulator, &$injectors, &$particle_array, &$injection_json ) {
       if ( !empty($item) ) {
         if ( is_array($item) ) {
-          walk_recursive( $item, $accumulator, $injectors, $injection_json );
+          walk_recursive( $item, $accumulator, $injectors, $particle_array, $injection_json );
         } else {
-          $accumulator[] = $item;
+          if ( !in_multi_array($item, $particle_array) ) {
+            $accumulator[] = $particle_array[] = $item;
+          }
         }
       }
     });
-    $injection_json = json_encode($accumulator, JSON_UNESCAPED_SLASHES);
-    $injectors[] = $injection_json;
+
+    if ( !empty($accumulator) ) {
+      $injection_json = json_encode($accumulator, JSON_UNESCAPED_SLASHES);
+      $injectors[] = $injection_json;
+    }
   }
-  walk_recursive( $antimatter_particles, FALSE, $injectors );
+  walk_recursive( $antimatter_particles, FALSE, $injectors, $particle_array );
 
   // assemble Fetch Inject string using ordered array
   $first_element = reset($injectors);
@@ -169,7 +179,11 @@ function fold_spacetime( $antimatter_particles ) {
     }
   }
 
+  $hyperdrive_ver = HYPERDRIVE_VERSION;
   return <<<EOD
+/**
+ * Hyperdrive v$hyperdrive_ver
+ */
 (function () {
   if (!window.fetch) return;
   /**
@@ -186,7 +200,7 @@ EOD;
 /**
  * Echos an inline script into the document.
  *
- * @since Hyperdrive 1.0.0
+ * @since Hyperdrive 1.0.0-beta.0
  * @param string $dark_energy An inline script to asynchronously
  *     fetch previously enqueued page resources.
  */
@@ -202,7 +216,7 @@ function enter_hyperspace( $dark_energy ) {
  * @uses generate_antimatter
  * @uses fold_spacetime
  * @uses enter_hyperspace
- * @since Hyperdrive 1.0.0
+ * @since Hyperdrive 1.0.0-beta.0
  */
 function engage() {
   $calibration_data = calibrate_thrusters();
@@ -219,7 +233,7 @@ function engage() {
  *
  * @uses get_deps_for_handle
  * @uses get_src_for_handle
- * @since Hyperdrive 1.0.0
+ * @since Hyperdrive 1.0.0-beta.0
  * @param array(string) $handles An array of handles
  * @return array(array) Dependency data matching expected structure
  */
@@ -249,11 +263,11 @@ function get_dependency_data( $handles ) {
 /**
  * Gets scripts registered and enqueued.
  *
- * @since Hyperdrive 1.0.0
+ * @since Hyperdrive 1.0.0-beta.0
  * @return array(_WP_Dependency) A list of enqueued dependencies
  */
 function get_enqueued_scripts() {
-  global $wp_scripts;
+  $wp_scripts = wp_scripts();
   foreach ( $wp_scripts->queue as $handle ) {
     $enqueued_scripts[] = $wp_scripts->registered[ $handle ];
   }
@@ -263,19 +277,19 @@ function get_enqueued_scripts() {
 /**
  * Gets a script dependency for a handle
  *
- * @since Hyperdrive 1.0.0
+ * @since Hyperdrive 1.0.0-beta.0
  * @param string $handle The handle
  * @return _WP_Dependency associated with input handle
  */
 function get_dep_for_handle( $handle ) {
-  global $wp_scripts;
+  $wp_scripts = wp_scripts();
   return $wp_scripts->registered[ $handle ];
 }
 
 /**
  * Gets the source URL given a script handle.
  *
- * @since Hyperdrive 1.0.0
+ * @since Hyperdrive 1.0.0-beta.0
  * @param string $handle The handle
  * @return URL associated with handle, or empty string
  */
@@ -290,11 +304,31 @@ function get_src_for_handle( $handle ) {
 /**
  * Gets all dependencies for a given handle.
  *
- * @since Hyperdrive 1.0.0
+ * @since Hyperdrive 1.0.0-beta.0
  * @param string $handle The handle
  * @return array(string) List of handles for dependencies of $handle
  */
 function get_deps_for_handle( $handle ) {
   $dep = get_dep_for_handle( $handle );
   return $dep->deps;
+}
+
+
+/**
+ * Checks if a value exists in a multidimensional array.
+ *
+ * @since Hyperdrive 1.0.0-beta.3
+ * @param string/array $needle The value(s) to search for.
+ * @param array $haystack The array to search.
+ * @return boolean True if found, false otherwise.
+ */
+function in_multi_array($needle, $haystack) {
+  foreach ( $haystack as $item ) {
+    if ( is_array($item) && in_multi_array($needle, $item) ) {
+      return true;
+    } else if ( $item == $needle ) {
+      return true;
+    }
+  }
+  return false;
 }
